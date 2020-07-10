@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.views.generic import UpdateView, ListView
 from django.utils import timezone
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 from .forms import NewTopicForm, PostForm
 from .models import Board, Topic, Post
@@ -17,15 +18,37 @@ class BoardListView(ListView):
     context_object_name = 'boards'
     template_name = 'home.html'    
 
+## board_topics 1
 # def board_topics(request, pk):
 #     # board = Board.objects.get(pk=pk)
 #     board = get_object_or_404(Board, pk=pk)
 #     return render(request, 'topics.html', {'board': board})
 
+# def board_topics(request, pk):
+#     board = get_object_or_404(Board, pk=pk)
+#     topics = board.topics.order_by('-last_updated').annotate(replies=Count('posts') - 1)
+#     return render(request, 'topics.html', {'board': board, 'topics': topics})
+
+# board_topics 2
 def board_topics(request, pk):
     board = get_object_or_404(Board, pk=pk)
-    topics = board.topics.order_by('-last_updated').annotate(replies=Count('posts') - 1)
+    queryset = board.topics.order_by('-last_updated').annotate(replies=Count('posts') - 1)
+    page = request.GET.get('page', 1)
+
+    paginator = Paginator(queryset, 5)
+
+    try:
+        topics = paginator.page(page)
+    except PageNotAnInteger:
+        # fallback to the first page
+        topics = paginator.page(1)
+    except EmptyPage:
+        # probably the user tried to add a page number
+        # in the url, so we fallback to the last page
+        topics = paginator.page(paginator.num_pages)
+
     return render(request, 'topics.html', {'board': board, 'topics': topics})
+
 
 @login_required
 def new_topic(request, pk):
